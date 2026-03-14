@@ -214,8 +214,3 @@ FAISS stores only vectors, not text. This project pairs it with a metadata dicti
 - **Normalisation:** vectors are L2-normalised before add and query so scores are in the range 0–1
 - **Persistence:** index saved to `data/faiss.index`, metadata to `data/faiss_meta.pkl` — both loaded on startup if present
 
----
-
-## License
-
-MIT
