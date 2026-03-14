@@ -2,10 +2,11 @@ import os
 
 from tavily import TavilyClient
 
+_client = TavilyClient(api_key=os.getenv("TAILVY_API_KEY"))
+
 
 def search_web(query: str, max_results: int = 5) -> list[dict]:
-    client = TavilyClient(api_key=os.getenv("TAILVY_API_KEY"))
-    response = client.search(query, max_results=max_results)
+    response = _client.search(query, max_results=max_results)
 
     return [
         {
