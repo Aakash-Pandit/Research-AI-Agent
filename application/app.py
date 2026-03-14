@@ -3,6 +3,7 @@ import os
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.concurrency import run_in_threadpool
 
 from application.agent.graph import agent
 from application.models.schemas import (
@@ -25,7 +26,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -51,7 +52,7 @@ async def health_check():
 @app.post("/research", response_model=ResearchResponse)
 async def research(request: ResearchRequest):
     try:
-        result = agent.invoke({
+        result = await run_in_threadpool(agent.invoke, {
             "query": request.query,
             "max_results": request.max_results,
             "search_results": [],
