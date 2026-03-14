@@ -1,0 +1,20 @@
+services:
+  fast-api:
+    build:
+      context: .
+      dockerfile: compose/Dockerfile
+    image: research-ai-agent
+    container_name: research-ai-agent
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
