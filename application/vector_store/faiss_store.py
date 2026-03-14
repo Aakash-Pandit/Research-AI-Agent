@@ -1,5 +1,6 @@
 import os
 import pickle
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,7 @@ META_PATH = Path("data/faiss_meta.pkl")
 
 class FAISSStore:
     def __init__(self):
+        self._lock = threading.Lock()
         self._co = cohere.ClientV2(api_key=os.getenv("COHERE_API_KEY"))
         self._index = faiss.IndexFlatIP(EMBED_DIM)
         self._metadata: dict[int, dict[str, Any]] = {}
@@ -42,26 +44,28 @@ class FAISSStore:
         metadata: list[dict] | None = None,
     ) -> list[int]:
         vecs = self._embed(texts, input_type="search_document")
-        start_id = self._index.ntotal
-        self._index.add(vecs)
-        ids = list(range(start_id, self._index.ntotal))
+        with self._lock:
+            start_id = self._index.ntotal
+            self._index.add(vecs)
+            ids = list(range(start_id, self._index.ntotal))
 
-        for i, fid in enumerate(ids):
-            self._metadata[fid] = {
-                "text": texts[i],
-                "source": sources[i],
-                **(metadata[i] if metadata else {}),
-            }
+            for i, fid in enumerate(ids):
+                self._metadata[fid] = {
+                    "text": texts[i],
+                    "source": sources[i],
+                    **(metadata[i] if metadata else {}),
+                }
 
-        self._save()
+            self._save()
         return ids
 
     def query(self, text: str, k: int = 5) -> list[SourceDocument]:
-        if self._index.ntotal == 0:
-            return []
+        with self._lock:
+            if self._index.ntotal == 0:
+                return []
 
-        vec = self._embed([text], input_type="search_query")
-        scores, indices = self._index.search(vec, min(k, self._index.ntotal))
+            vec = self._embed([text], input_type="search_query")
+            scores, indices = self._index.search(vec, min(k, self._index.ntotal))
 
         results = []
         for score, idx in zip(scores[0], indices[0]):
@@ -73,7 +77,7 @@ class FAISSStore:
                     text=meta["text"],
                     source=meta.get("source", "unknown"),
                     score=float(score),
-                    metadata={k: v for k, v in meta.items() if k not in ("text", "source")},
+                    metadata={key: v for key, v in meta.items() if key not in ("text", "source")},
                 )
             )
         return results
