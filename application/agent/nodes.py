@@ -6,6 +6,9 @@ from application.agent.state import AgentState
 from application.tools.tailvy_tool import search_web as tavily_search
 from application.vector_store.faiss_store import store
 
+_co = cohere.ClientV2(api_key=os.getenv("COHERE_API_KEY"))
+_model = os.getenv("COHERE_LLM_MODEL", "command-a-03-2025")
+
 
 def search_web(state: AgentState) -> dict:
     results = tavily_search(state["query"], max_results=state.get("max_results", 5))
@@ -24,9 +27,6 @@ def retrieve_docs(state: AgentState) -> dict:
 
 
 def generate_answer(state: AgentState) -> dict:
-    co = cohere.ClientV2(api_key=os.getenv("COHERE_API_KEY"))
-    model = os.getenv("COHERE_LLM_MODEL", "command-a-03-2025")
-
     web_context = "\n\n".join(
         f"[Web] {r['title']}\n{r['content']}" for r in state.get("search_results", [])
     )
@@ -44,8 +44,8 @@ def generate_answer(state: AgentState) -> dict:
         f"Answer:"
     )
 
-    response = co.chat(
-        model=model,
+    response = _co.chat(
+        model=_model,
         messages=[{"role": "user", "content": prompt}],
     )
 
