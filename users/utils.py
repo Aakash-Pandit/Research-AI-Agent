@@ -1,9 +1,6 @@
 from fastapi import HTTPException, Request
-from sqlalchemy.orm import Session
 
-from organizations.models import Organization
 from users.choices import UserType
-from users.models import LeaveRequestItem, User
 
 
 def coerce_user_type(value: str) -> UserType:
