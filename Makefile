@@ -16,4 +16,4 @@ rebuild:
 	make start
 
 test:
-	docker compose --profile test run --rm test
+	pytest tests/
