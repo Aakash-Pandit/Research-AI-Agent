@@ -1,6 +1,7 @@
+import faiss
 import pytest
 import numpy as np
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from application.vector_store.faiss_store import FAISSStore, EMBED_DIM
 
@@ -17,8 +18,12 @@ def store(tmp_path, monkeypatch):
     # Redirect disk paths to a fresh temp dir so _load is never triggered
     monkeypatch.setattr("application.vector_store.faiss_store.INDEX_PATH", tmp_path / "faiss.index")
     monkeypatch.setattr("application.vector_store.faiss_store.META_PATH", tmp_path / "faiss_meta.pkl")
-    with patch("application.vector_store.faiss_store.cohere.ClientV2"):
+    with patch("application.vector_store.faiss_store.cohere.ClientV2"), \
+         patch.object(FAISSStore, "_load"):
         s = FAISSStore()
+    # Explicitly reset to guarantee isolation from the module-level singleton
+    s._index = faiss.IndexFlatIP(EMBED_DIM)
+    s._metadata = {}
     # Prevent disk writes during the test
     s._save = lambda: None
     return s
@@ -72,8 +77,7 @@ class TestAddDocuments:
 
 class TestQuery:
     def test_empty_store_returns_empty_list(self, store):
-        with patch.object(store, "_embed", return_value=make_fake_embed(1)):
-            results = store.query("some query")
+        results = store.query("some query")
         assert results == []
 
     def test_query_returns_source_documents(self, store_with_docs):
