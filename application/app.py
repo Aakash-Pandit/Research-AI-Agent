@@ -4,6 +4,7 @@ import os
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
+from starlette.middleware.authentication import AuthenticationMiddleware
 
 from application.agent.graph import agent
 from application.logger import logger
@@ -15,6 +16,8 @@ from application.models.schemas import (
     ResearchResponse,
 )
 from application.vector_store.faiss_store import store
+from application.middleware_logger import LoggingMiddleware
+from auth.backend import JWTAuthBackend
 from auth.dependencies import require_authenticated_user
 
 logging.getLogger("onnxruntime").setLevel(logging.ERROR)
@@ -33,6 +36,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(AuthenticationMiddleware, backend=JWTAuthBackend())
+app.add_middleware(LoggingMiddleware)
 
 
 @app.get("/", include_in_schema=False)
