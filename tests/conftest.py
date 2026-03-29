@@ -23,6 +23,13 @@ TEST_ADMIN_ID = "00000000-0000-0000-0000-000000000001"
 TEST_USER_ID = "00000000-0000-0000-0000-000000000002"
 
 
+@pytest.fixture(autouse=True, scope="session")
+def disable_clickhouse_sink():
+    """Silence ClickHouse during tests — the service is not available in CI."""
+    with patch("application.clickhouse_sink.insert_batch"):
+        yield
+
+
 def make_db_user(user_id: str, user_type: UserType) -> MagicMock:
     user = MagicMock()
     user.id = uuid.UUID(user_id)
