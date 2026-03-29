@@ -208,3 +208,4 @@ __marimo__/
 
 # FAISS persisted index and metadata
 data/
+.DS_Store
