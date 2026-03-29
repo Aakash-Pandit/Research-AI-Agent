@@ -1,7 +1,7 @@
 import logging
 import os
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 
@@ -14,6 +14,7 @@ from application.models.schemas import (
     ResearchResponse,
 )
 from application.vector_store.faiss_store import store
+from auth.dependencies import require_authenticated_user
 
 logging.getLogger("onnxruntime").setLevel(logging.ERROR)
 
@@ -21,6 +22,7 @@ app = FastAPI(
     title="Research AI Agent API",
     description="API for Research AI Agent powered by LangGraph, Cohere, FAISS, and Tavily",
     version="1.0.0",
+    dependencies=[Depends(require_authenticated_user)],
 )
 
 app.add_middleware(
@@ -69,6 +71,15 @@ async def research(request: ResearchRequest):
         sources=result.get("retrieved_docs", []),
         steps=result.get("steps", []),
     )
+
+
+@app.delete("/documents", summary="Clear all documents from vector store")
+async def clear_documents():
+    try:
+        store.clear()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"success": True, "message": "Vector store cleared"}
 
 
 @app.post("/documents", response_model=AddDocumentResponse)
