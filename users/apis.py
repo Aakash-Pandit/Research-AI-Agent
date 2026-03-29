@@ -1,25 +1,11 @@
-from datetime import datetime
-
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from application.app import app
 from auth.passwords import hash_password
-from database.db import drop_leave_requests_table, drop_users_table, get_db
-from organizations.models import (
-    Organization,
-    UserOrganization,
-    UserOrganizationItem,
-    UserOrganizationsListResponse,
-)
+from database.db import drop_users_table, get_db
 from users.choices import UserType
 from users.models import (
-    LeaveRequest,
-    LeaveRequestCreate,
-    LeaveRequestItem,
-    LeaveRequestResponse,
-    LeaveRequestReview,
-    LeaveRequestsListResponse,
     User,
     UserItem,
     UserRequest,
@@ -27,7 +13,6 @@ from users.models import (
     UsersListResponse,
 )
 from users.utils import (
-    build_leave_request_item,
     coerce_user_type,
     require_admin,
     require_authenticated_user,
