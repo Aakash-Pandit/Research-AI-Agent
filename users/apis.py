@@ -1,6 +1,5 @@
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from starlette.concurrency import run_in_threadpool
 
 from application.app import app
 from application.logger import logger
@@ -22,10 +21,7 @@ from users.utils import (
 
 
 @app.get("/users", response_model=UsersListResponse)
-async def get_users(
-    request: Request,
-    db: Session = Depends(get_db),
-):
+def get_users(request: Request, db: Session = Depends(get_db)):
     require_admin(request.user.user_type)
     rows = db.query(User).order_by(User.created.desc()).all()
     users = [
@@ -49,11 +45,7 @@ async def get_users(
 
 
 @app.get("/users/{user_id}", response_model=UserItem)
-async def get_user(
-    user_id: str,
-    request: Request,
-    db: Session = Depends(get_db),
-):
+def get_user(user_id: str, request: Request, db: Session = Depends(get_db)):
     current_user = require_authenticated_user(request)
     if current_user.user_id != user_id:
         logger.warning("Unauthorized user profile access", extra={"requested_by": current_user.user_id, "target_user_id": user_id})
@@ -77,7 +69,7 @@ async def get_user(
 
 
 @app.post("/users", response_model=UserResponse)
-async def create_user(user: UserRequest, db: Session = Depends(get_db)):
+def create_user(user: UserRequest, db: Session = Depends(get_db)):
     username_lower = user.username.lower()
     email_lower = (user.email or "").strip().lower()
 
@@ -90,7 +82,7 @@ async def create_user(user: UserRequest, db: Session = Depends(get_db)):
         logger.warning("User creation failed: email taken", extra={"email": email_lower})
         raise HTTPException(status_code=409, detail="A user with this email already exists")
 
-    password_hash = await run_in_threadpool(hash_password, user.password)
+    password_hash = hash_password(user.password)
     new_user = User(
         first_name=user.first_name.lower(),
         last_name=user.last_name.lower(),
@@ -121,7 +113,7 @@ async def create_user(user: UserRequest, db: Session = Depends(get_db)):
 
 
 @app.delete("/users/{user_id}")
-async def delete_user(user_id: str, db: Session = Depends(get_db)):
+def delete_user(user_id: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         logger.warning("User deletion failed: not found", extra={"user_id": user_id})
@@ -133,7 +125,7 @@ async def delete_user(user_id: str, db: Session = Depends(get_db)):
 
 
 @app.delete("/admin/drop-users-db")
-async def drop_users_db_table():
+def drop_users_db_table():
     logger.critical("Users table dropped via admin endpoint")
     drop_users_table()
     return {"status": "ok", "message": "Users database table dropped"}

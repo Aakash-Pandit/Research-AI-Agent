@@ -3,7 +3,6 @@ from datetime import timedelta
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from starlette.concurrency import run_in_threadpool
 
 from application.app import app
 from application.logger import logger
@@ -24,13 +23,13 @@ class TokenResponse(BaseModel):
 
 
 @app.post("/login", response_model=TokenResponse)
-async def login(payload: TokenRequest, db: Session = Depends(get_db)):
+def login(payload: TokenRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == payload.username).first()
     if not user:
         logger.warning("Login failed: user not found", extra={"username": payload.username})
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    if not await run_in_threadpool(verify_password, payload.password, user.password_hash):
+    if not verify_password(payload.password, user.password_hash):
         logger.warning("Login failed: wrong password", extra={"username": payload.username, "user_id": str(user.id)})
         raise HTTPException(status_code=401, detail="Invalid credentials")
 

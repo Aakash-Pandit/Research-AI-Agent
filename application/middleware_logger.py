@@ -44,6 +44,13 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         request_id_var.set(request_id)  # propagates to all loggers in this request
 
         request_body = await request.body()
+
+        # body() drains the ASGI receive stream; restore it so the route handler
+        # can still read the body when call_next passes _receive downstream.
+        async def replay_receive():
+            return {"type": "http.request", "body": request_body, "more_body": False}
+        request._receive = replay_receive
+
         payload = _parse_body(request_body)
 
         path = request.url.path
