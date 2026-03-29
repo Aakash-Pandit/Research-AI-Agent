@@ -10,6 +10,24 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# ---- test stage ----
+FROM builder AS test-builder
+
+COPY requirements-test.txt .
+RUN pip install --no-cache-dir -r requirements-test.txt
+
+FROM python:3.11-slim AS test
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/venv/bin:$PATH"
+
+WORKDIR /app
+COPY --from=test-builder /venv /venv
+COPY . .
+
+CMD ["pytest", "tests/", "-v"]
+
 # ---- runtime stage ----
 FROM python:3.11-slim AS runtime
 
