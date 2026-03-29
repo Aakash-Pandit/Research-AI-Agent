@@ -1,11 +1,12 @@
 import logging
 import os
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 
 from application.agent.graph import agent
+from application.logger import logger
 from application.models.schemas import (
     AddDocumentRequest,
     AddDocumentResponse,
@@ -52,19 +53,27 @@ async def health_check():
 
 
 @app.post("/research", response_model=ResearchResponse)
-async def research(request: ResearchRequest):
+async def research(request: Request, payload: ResearchRequest):
+    user_id = request.user.user_id
+    email = request.user._display_name
+    logger.info(
+        "Research query received",
+        extra={"user_id": user_id, "email": email, "query": payload.query},
+    )
     try:
         result = await run_in_threadpool(agent.invoke, {
-            "query": request.query,
-            "max_results": request.max_results,
+            "query": payload.query,
+            "max_results": payload.max_results,
             "search_results": [],
             "retrieved_docs": [],
             "steps": [],
             "answer": "",
         })
     except Exception as e:
+        logger.error("Research query failed", extra={"user_id": user_id, "email": email, "error": str(e)})
         raise HTTPException(status_code=500, detail=str(e))
 
+    logger.info("Research query completed", extra={"user_id": user_id, "email": email, "query": payload.query})
     return ResearchResponse(
         query=result["query"],
         answer=result["answer"],
@@ -74,27 +83,38 @@ async def research(request: ResearchRequest):
 
 
 @app.delete("/documents", summary="Clear all documents from vector store")
-async def clear_documents():
+async def clear_documents(request: Request):
+    user_id = request.user.user_id
+    email = request.user._display_name
+    logger.warning("Vector store cleared", extra={"user_id": user_id, "email": email})
     try:
         store.clear()
     except Exception as e:
+        logger.error("Failed to clear vector store", extra={"user_id": user_id, "email": email, "error": str(e)})
         raise HTTPException(status_code=500, detail=str(e))
     return {"success": True, "message": "Vector store cleared"}
 
 
 @app.post("/documents", response_model=AddDocumentResponse)
-async def add_document(request: AddDocumentRequest):
+async def add_document(request: Request, payload: AddDocumentRequest):
+    user_id = request.user.user_id
+    email = request.user._display_name
+    logger.info(
+        "Document added to vector store",
+        extra={"user_id": user_id, "email": email, "source": payload.source},
+    )
     try:
         ids = store.add_documents(
-            texts=[request.text],
-            sources=[request.source],
-            metadata=[request.metadata],
+            texts=[payload.text],
+            sources=[payload.source],
+            metadata=[payload.metadata],
         )
     except Exception as e:
+        logger.error("Failed to add document", extra={"user_id": user_id, "email": email, "error": str(e)})
         raise HTTPException(status_code=500, detail=str(e))
 
     return AddDocumentResponse(
         success=True,
         faiss_id=ids[0],
-        source=request.source,
+        source=payload.source,
     )
