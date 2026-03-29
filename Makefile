@@ -16,4 +16,4 @@ rebuild:
 	make start
 
 test:
-	pytest tests/
+	docker compose run --rm fast-api pytest tests/ -v
