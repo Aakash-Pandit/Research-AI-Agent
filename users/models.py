@@ -8,7 +8,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from database.db import Base
-from users.choices import LeaveType, UserType
+from users.choices import UserType
 
 
 class User(Base):
