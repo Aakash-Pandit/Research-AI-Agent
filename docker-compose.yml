@@ -17,6 +17,36 @@ services:
       retries: 5
     restart: unless-stopped
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./compose/clickhouse/override-networks.xml:/etc/clickhouse-server/users.d/override-networks.xml
+      - ./compose/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query 'SELECT 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    restart: unless-stopped
+
   fast-api:
     build:
       context: .
@@ -40,3 +70,5 @@ services:
 
 volumes:
   postgres_data:
+  clickhouse_data:
+  grafana_data:
