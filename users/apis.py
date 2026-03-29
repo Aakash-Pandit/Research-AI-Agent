@@ -1,7 +1,9 @@
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from application.app import app
+from application.logger import logger
 from auth.passwords import hash_password
 from database.db import drop_users_table, get_db
 from users.choices import UserType
@@ -42,11 +44,8 @@ async def get_users(
     ]
     total = len(users)
     message = "No users found" if total == 0 else "Users retrieved"
-    return UsersListResponse(
-        users=users,
-        total=total,
-        message=message,
-    )
+    logger.info("Users list fetched", extra={"requested_by": request.user.user_id, "total": total})
+    return UsersListResponse(users=users, total=total, message=message)
 
 
 @app.get("/users/{user_id}", response_model=UserItem)
@@ -57,10 +56,13 @@ async def get_user(
 ):
     current_user = require_authenticated_user(request)
     if current_user.user_id != user_id:
+        logger.warning("Unauthorized user profile access", extra={"requested_by": current_user.user_id, "target_user_id": user_id})
         raise HTTPException(status_code=403, detail="User access restricted")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
+        logger.warning("User not found", extra={"user_id": user_id})
         raise HTTPException(status_code=404, detail="User not found")
+    logger.info("User profile fetched", extra={"user_id": user_id})
     return UserItem(
         id=str(user.id),
         first_name=user.first_name,
@@ -81,18 +83,14 @@ async def create_user(user: UserRequest, db: Session = Depends(get_db)):
 
     existing_by_username = db.query(User).filter(User.username == username_lower).first()
     if existing_by_username:
-        raise HTTPException(
-            status_code=409,
-            detail="A user with this username already exists",
-        )
+        logger.warning("User creation failed: username taken", extra={"username": username_lower})
+        raise HTTPException(status_code=409, detail="A user with this username already exists")
 
     if email_lower and db.query(User).filter(User.email == email_lower).first():
-        raise HTTPException(
-            status_code=409,
-            detail="A user with this email already exists",
-        )
+        logger.warning("User creation failed: email taken", extra={"email": email_lower})
+        raise HTTPException(status_code=409, detail="A user with this email already exists")
 
-    password_hash = hash_password(user.password)
+    password_hash = await run_in_threadpool(hash_password, user.password)
     new_user = User(
         first_name=user.first_name.lower(),
         last_name=user.last_name.lower(),
@@ -108,6 +106,7 @@ async def create_user(user: UserRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
+    logger.info("User created", extra={"user_id": str(new_user.id), "username": new_user.username, "email": new_user.email})
     return UserResponse(
         id=str(new_user.id),
         first_name=new_user.first_name,
@@ -125,13 +124,16 @@ async def create_user(user: UserRequest, db: Session = Depends(get_db)):
 async def delete_user(user_id: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
+        logger.warning("User deletion failed: not found", extra={"user_id": user_id})
         raise HTTPException(status_code=404, detail="User not found")
     db.delete(user)
     db.commit()
+    logger.info("User deleted", extra={"user_id": user_id})
     return {"status": "ok", "message": "User deleted"}
 
 
 @app.delete("/admin/drop-users-db")
 async def drop_users_db_table():
+    logger.critical("Users table dropped via admin endpoint")
     drop_users_table()
     return {"status": "ok", "message": "Users database table dropped"}
