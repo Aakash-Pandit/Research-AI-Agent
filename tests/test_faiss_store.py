@@ -13,9 +13,14 @@ def make_fake_embed(n: int = 1) -> np.ndarray:
 
 
 @pytest.fixture
-def store():
+def store(tmp_path, monkeypatch):
+    # Redirect disk paths to a fresh temp dir so _load is never triggered
+    monkeypatch.setattr("application.vector_store.faiss_store.INDEX_PATH", tmp_path / "faiss.index")
+    monkeypatch.setattr("application.vector_store.faiss_store.META_PATH", tmp_path / "faiss_meta.pkl")
     with patch("application.vector_store.faiss_store.cohere.ClientV2"):
         s = FAISSStore()
+    # Prevent disk writes during the test
+    s._save = lambda: None
     return s
 
 
