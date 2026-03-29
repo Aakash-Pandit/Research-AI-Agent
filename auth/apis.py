@@ -31,7 +31,12 @@ async def login(payload: TokenRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_access_token(
-        {"sub": str(user.id), "user_type": str(user.user_type)},
+        {
+            "sub": str(user.id),
+            "user_type": str(user.user_type),
+            "username": user.username,
+            "email": user.email,
+        },
         expires_delta=timedelta(minutes=JWT_EXPIRE_MINUTES),
     )
     return TokenResponse(access_token=token, token_type="bearer")
