@@ -1,18 +1,33 @@
-FROM python:3.11-slim
+# ---- builder stage ----
+FROM python:3.11-slim AS builder
 
-ENV PYTHONDONTWRITEBYTECODE=1
+WORKDIR /build
+
+RUN python -m venv /venv
+ENV PATH="/venv/bin:$PATH"
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# ---- runtime stage ----
+FROM python:3.11-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/venv/bin:$PATH"
+
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
 WORKDIR /app
 
-# Copy application code
-COPY . .
+COPY --from=builder /venv /venv
+COPY --chown=appuser:appgroup . .
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN mkdir -p data && chown appuser:appgroup data
 
+USER appuser
 
-# Expose the port FastAPI runs on
 EXPOSE 8000
 
-# Run the application with hot reload
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
