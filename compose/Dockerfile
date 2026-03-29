@@ -24,7 +24,7 @@ WORKDIR /app
 COPY --from=builder /venv /venv
 COPY --chown=appuser:appgroup . .
 
-RUN mkdir -p data && chown appuser:appgroup data
+RUN mkdir -p data logs && chown appuser:appgroup data logs
 
 USER appuser
 
