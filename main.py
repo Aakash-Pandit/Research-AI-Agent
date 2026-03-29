@@ -1,8 +1,22 @@
 import os
 
 import uvicorn
+from starlette.middleware.authentication import AuthenticationMiddleware
 
 from application.app import app
+from auth.backend import JWTAuthBackend
+from database.db import Base, engine
+
+# Register route modules (must happen before server starts)
+import auth.apis  # noqa: F401
+import users.apis  # noqa: F401
+import users.models  # noqa: F401  — registers models with Base
+
+# Create DB tables
+Base.metadata.create_all(bind=engine)
+
+# Auth middleware
+app.add_middleware(AuthenticationMiddleware, backend=JWTAuthBackend())
 
 port = int(os.getenv("API_PORT", "8000"))
 
