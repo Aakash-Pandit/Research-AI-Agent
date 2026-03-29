@@ -12,3 +12,4 @@ sqlalchemy==2.0.36
 psycopg2-binary==2.9.10
 python-jose[cryptography]==3.3.0
 bcrypt==4.2.1
+clickhouse-connect==0.8.15
