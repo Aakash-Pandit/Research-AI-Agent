@@ -3,7 +3,7 @@ import os
 import cohere
 
 from application.agent.state import AgentState
-from application.tools.tailvy_tool import search_web as tavily_search
+from application.tools.tavily_tool import search_web as tavily_search
 from application.vector_store.faiss_store import store
 
 _co = cohere.ClientV2(api_key=os.getenv("COHERE_API_KEY"))
