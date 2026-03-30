@@ -3,7 +3,8 @@ from unittest.mock import MagicMock
 from fastapi import HTTPException
 
 from users.choices import UserType
-from users.utils import coerce_user_type, require_admin, require_authenticated_user
+from users.utils import coerce_user_type, require_admin
+from auth.dependencies import require_authenticated_user
 
 
 class TestCoerceUserType:
