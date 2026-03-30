@@ -41,7 +41,7 @@ def insert_batch(batch: list) -> None:
             datetime.strptime(e.timestamp, "%Y-%m-%d %H:%M:%S"),
             e.level, e.method, e.endpoint,
             e.status_code, e.response_time, e.payload,
-            e.request_id, e.message, e.service, e.host,
+            e.request_id, e.user_id, e.message, e.service, e.host,
         ]
         for e in batch
     ]
@@ -52,7 +52,7 @@ def insert_batch(batch: list) -> None:
             column_names=[
                 "timestamp", "level", "method", "endpoint",
                 "status_code", "response_time", "payload",
-                "request_id", "message", "service", "host",
+                "request_id", "user_id", "message", "service", "host",
             ],
         )
     except Exception as exc:

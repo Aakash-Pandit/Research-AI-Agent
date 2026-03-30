@@ -2,7 +2,7 @@ import json
 import time
 import uuid
 from starlette.middleware.base import BaseHTTPMiddleware
-from application.async_logger import request_id_var
+from application.async_logger import request_id_var, user_id_var
 from application.logger import logger
 
 MAX_BODY_LOG_SIZE = 2048
@@ -60,6 +60,10 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         start_time = time.time()
         response = await call_next(request)
         process_time = time.time() - start_time
+
+        user = getattr(request, "user", None)
+        if user and getattr(user, "is_authenticated", False):
+            user_id_var.set(user.user_id)
 
         _log_fn(response.status_code)(
             "API request processed",

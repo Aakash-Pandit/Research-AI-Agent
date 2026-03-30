@@ -22,6 +22,7 @@ os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 # Set once per request in middleware; automatically available to any logger
 # called during that request without passing it through every function call.
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
+user_id_var: ContextVar[str] = ContextVar("user_id", default="-")
 
 log_queue: queue.Queue = queue.Queue(maxsize=QUEUE_MAX_SIZE)
 _SENTINEL = object()
@@ -37,6 +38,7 @@ class LogEntry:
     response_time: float
     payload: str
     request_id: str
+    user_id: str
     message: str
     service: str
     host: str
@@ -73,7 +75,7 @@ class Worker(threading.Thread):
         stdout_lines = "".join(
             f"{e.timestamp} | {e.level:<8} | {e.method}: {e.endpoint} | "
             f"status={e.status_code} | {e.response_time:.3f}s | "
-            f"req_id={e.request_id} | payload={e.payload} | {e.message}\n"
+            f"req_id={e.request_id} | user_id={e.user_id} | payload={e.payload} | {e.message}\n"
             for e in batch
         )
         sys.stdout.write(stdout_lines)
@@ -118,6 +120,7 @@ class AsyncHandler(logging.Handler):
             # Use explicitly passed request_id, fall back to context var so any
             # logger called mid-request gets the id without passing it manually.
             request_id=getattr(record, "request_id", None) or request_id_var.get(),
+            user_id=getattr(record, "user_id", None) or user_id_var.get(),
             message=record.getMessage(),
             service=SERVICE_NAME,
             host=HOSTNAME,
