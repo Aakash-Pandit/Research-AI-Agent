@@ -19,7 +19,7 @@ class User(Base):
     last_name = Column(String, nullable=False)
     username = Column(String, nullable=False, unique=True)
     password_hash = Column(String, nullable=False)
-    email = Column(String, nullable=False)
+    email = Column(String, nullable=False, unique=True)
     phone = Column(String, nullable=False)
     gender = Column(String, nullable=False)
     user_type = Column(

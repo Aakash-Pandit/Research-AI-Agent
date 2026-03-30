@@ -125,7 +125,8 @@ def delete_user(user_id: str, db: Session = Depends(get_db)):
 
 
 @app.delete("/admin/drop-users-db")
-def drop_users_db_table():
-    logger.critical("Users table dropped via admin endpoint")
+def drop_users_db_table(request: Request):
+    require_admin(request.user.user_type)
+    logger.critical("Users table dropped via admin endpoint", extra={"requested_by": request.user.user_id})
     drop_users_table()
     return {"status": "ok", "message": "Users database table dropped"}
