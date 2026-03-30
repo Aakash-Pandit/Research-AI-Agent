@@ -95,7 +95,7 @@ cp .env.example .env
 API_PORT=8000
 COHERE_API_KEY=your-cohere-api-key
 COHERE_LLM_MODEL=command-a-03-2025
-TAILVY_API_KEY=your-tavily-api-key
+TAVILY_API_KEY=your-tavily-api-key
 ```
 
 ### 3. Run locally
