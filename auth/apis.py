@@ -1,15 +1,16 @@
 from datetime import timedelta
 
-from fastapi import Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from application.app import app
 from application.logger import logger
 from auth.jwt import JWT_EXPIRE_MINUTES, create_access_token
 from auth.passwords import verify_password
 from database.db import get_db
 from users.models import User
+
+router = APIRouter()
 
 
 class TokenRequest(BaseModel):
@@ -22,7 +23,7 @@ class TokenResponse(BaseModel):
     token_type: str
 
 
-@app.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse)
 def login(payload: TokenRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == payload.username).first()
     if not user:

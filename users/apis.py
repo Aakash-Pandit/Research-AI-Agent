@@ -1,26 +1,18 @@
-from fastapi import Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from application.app import app
 from application.logger import logger
+from auth.dependencies import require_authenticated_user
 from auth.passwords import hash_password
 from database.db import drop_users_table, get_db
-from users.choices import UserType
-from users.models import (
-    User,
-    UserItem,
-    UserRequest,
-    UserResponse,
-    UsersListResponse,
-)
-from users.utils import (
-    coerce_user_type,
-    require_admin,
-    require_authenticated_user,
-)
+from users.models import User
+from users.schemas import UserItem, UserRequest, UsersListResponse
+from users.utils import require_admin
+
+router = APIRouter()
 
 
-@app.get("/users", response_model=UsersListResponse)
+@router.get("/users", response_model=UsersListResponse)
 def get_users(request: Request, db: Session = Depends(get_db)):
     require_admin(request.user.user_type)
     rows = db.query(User).order_by(User.created.desc()).all()
@@ -44,7 +36,7 @@ def get_users(request: Request, db: Session = Depends(get_db)):
     return UsersListResponse(users=users, total=total, message=message)
 
 
-@app.get("/users/{user_id}", response_model=UserItem)
+@router.get("/users/{user_id}", response_model=UserItem)
 def get_user(user_id: str, request: Request, db: Session = Depends(get_db)):
     current_user = require_authenticated_user(request)
     if current_user.user_id != user_id:
@@ -68,27 +60,25 @@ def get_user(user_id: str, request: Request, db: Session = Depends(get_db)):
     )
 
 
-@app.post("/users", response_model=UserResponse)
+@router.post("/users", response_model=UserItem)
 def create_user(user: UserRequest, db: Session = Depends(get_db)):
     username_lower = user.username.lower()
-    email_lower = (user.email or "").strip().lower()
+    email_lower = user.email.strip().lower()
 
-    existing_by_username = db.query(User).filter(User.username == username_lower).first()
-    if existing_by_username:
+    if db.query(User).filter(User.username == username_lower).first():
         logger.warning("User creation failed: username taken", extra={"username": username_lower})
         raise HTTPException(status_code=409, detail="A user with this username already exists")
 
-    if email_lower and db.query(User).filter(User.email == email_lower).first():
+    if db.query(User).filter(User.email == email_lower).first():
         logger.warning("User creation failed: email taken", extra={"email": email_lower})
         raise HTTPException(status_code=409, detail="A user with this email already exists")
 
-    password_hash = hash_password(user.password)
     new_user = User(
         first_name=user.first_name.lower(),
         last_name=user.last_name.lower(),
         username=username_lower,
-        password_hash=password_hash,
-        email=email_lower or user.email,
+        password_hash=hash_password(user.password),
+        email=email_lower,
         phone=user.phone,
         gender=user.gender,
         date_of_birth=user.date_of_birth,
@@ -99,7 +89,7 @@ def create_user(user: UserRequest, db: Session = Depends(get_db)):
     db.refresh(new_user)
 
     logger.info("User created", extra={"user_id": str(new_user.id), "username": new_user.username, "email": new_user.email})
-    return UserResponse(
+    return UserItem(
         id=str(new_user.id),
         first_name=new_user.first_name,
         last_name=new_user.last_name,
@@ -112,19 +102,20 @@ def create_user(user: UserRequest, db: Session = Depends(get_db)):
     )
 
 
-@app.delete("/users/{user_id}")
-def delete_user(user_id: str, db: Session = Depends(get_db)):
+@router.delete("/users/{user_id}")
+def delete_user(user_id: str, request: Request, db: Session = Depends(get_db)):
+    require_admin(request.user.user_type)
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         logger.warning("User deletion failed: not found", extra={"user_id": user_id})
         raise HTTPException(status_code=404, detail="User not found")
     db.delete(user)
     db.commit()
-    logger.info("User deleted", extra={"user_id": user_id})
+    logger.info("User deleted", extra={"user_id": user_id, "deleted_by": request.user.user_id})
     return {"status": "ok", "message": "User deleted"}
 
 
-@app.delete("/admin/drop-users-db")
+@router.delete("/admin/drop-users-db")
 def drop_users_db_table(request: Request):
     require_admin(request.user.user_type)
     logger.critical("Users table dropped via admin endpoint", extra={"requested_by": request.user.user_id})

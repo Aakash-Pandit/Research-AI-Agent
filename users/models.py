@@ -1,10 +1,7 @@
 import uuid
-from datetime import datetime
 
-from pydantic import BaseModel
-from sqlalchemy import Boolean, Column, Date, DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import Column, Date, DateTime, Enum, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from database.db import Base
@@ -28,45 +25,3 @@ class User(Base):
     date_of_birth = Column(Date, nullable=False)
     created = Column(DateTime(timezone=True), server_default=func.now())
     modified = Column(DateTime(timezone=True), onupdate=func.now())
-
-
-class UserRequest(BaseModel):
-    first_name: str
-    last_name: str
-    username: str
-    password: str
-    email: str
-    phone: str
-    gender: str
-    user_type: UserType = UserType.REGULAR
-    date_of_birth: datetime
-
-
-class UserItem(BaseModel):
-    id: str
-    first_name: str
-    last_name: str
-    username: str
-    email: str
-    phone: str
-    gender: str
-    user_type: UserType
-    date_of_birth: datetime
-
-
-class UserResponse(BaseModel):
-    id: str
-    first_name: str
-    last_name: str
-    username: str
-    email: str
-    phone: str
-    gender: str
-    user_type: UserType
-    date_of_birth: datetime
-
-
-class UsersListResponse(BaseModel):
-    users: list[UserItem]
-    total: int
-    message: str

@@ -6,7 +6,7 @@ os.environ.setdefault("JWT_SECRET", "test-secret-key-for-testing")
 os.environ.setdefault("JWT_ALGORITHM", "HS256")
 os.environ.setdefault("JWT_EXPIRE_MINUTES", "60")
 os.environ.setdefault("COHERE_API_KEY", "test-cohere-key")
-os.environ.setdefault("TAILVY_API_KEY", "test-tavily-key")
+os.environ.setdefault("TAVILY_API_KEY", "test-tavily-key")
 os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost/test_db")
 
 import pytest
@@ -57,8 +57,6 @@ def make_session_cls(user: MagicMock) -> MagicMock:
 @pytest.fixture(scope="session")
 def fastapi_app():
     from application.app import app
-    import auth.apis  # noqa — registers /login
-    import users.apis  # noqa — registers /users routes
     app.add_middleware(AuthenticationMiddleware, backend=JWTAuthBackend())
     return app
 

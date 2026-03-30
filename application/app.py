@@ -19,6 +19,9 @@ from application.vector_store.faiss_store import store
 from application.middleware_logger import LoggingMiddleware
 from auth.backend import JWTAuthBackend
 from auth.dependencies import require_authenticated_user
+import auth.apis
+import users.apis
+import users.models  # noqa: F401 — registers models with Base
 
 logging.getLogger("onnxruntime").setLevel(logging.ERROR)
 
@@ -39,6 +42,9 @@ app.add_middleware(
 
 app.add_middleware(AuthenticationMiddleware, backend=JWTAuthBackend())
 app.add_middleware(LoggingMiddleware)
+
+app.include_router(auth.apis.router)
+app.include_router(users.apis.router)
 
 
 @app.get("/", include_in_schema=False)
