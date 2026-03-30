@@ -92,6 +92,15 @@ class FAISSStore:
         with open(META_PATH, "wb") as f:
             pickle.dump(self._metadata, f)
 
+    def clear(self):
+        with self._lock:
+            self._index = faiss.IndexFlatIP(EMBED_DIM)
+            self._metadata = {}
+            if INDEX_PATH.exists():
+                INDEX_PATH.unlink()
+            if META_PATH.exists():
+                META_PATH.unlink()
+
     def _load(self):
         self._index = faiss.read_index(str(INDEX_PATH))
         with open(META_PATH, "rb") as f:

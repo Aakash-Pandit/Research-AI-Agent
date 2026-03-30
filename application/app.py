@@ -1,11 +1,13 @@
 import logging
 import os
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
+from starlette.middleware.authentication import AuthenticationMiddleware
 
 from application.agent.graph import agent
+from application.logger import logger
 from application.models.schemas import (
     AddDocumentRequest,
     AddDocumentResponse,
@@ -14,6 +16,12 @@ from application.models.schemas import (
     ResearchResponse,
 )
 from application.vector_store.faiss_store import store
+from application.middleware_logger import LoggingMiddleware
+from auth.backend import JWTAuthBackend
+from auth.dependencies import require_authenticated_user
+import auth.apis
+import users.apis
+import users.models  # noqa: F401 — registers models with Base
 
 logging.getLogger("onnxruntime").setLevel(logging.ERROR)
 
@@ -21,6 +29,7 @@ app = FastAPI(
     title="Research AI Agent API",
     description="API for Research AI Agent powered by LangGraph, Cohere, FAISS, and Tavily",
     version="1.0.0",
+    dependencies=[Depends(require_authenticated_user)],
 )
 
 app.add_middleware(
@@ -30,6 +39,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(AuthenticationMiddleware, backend=JWTAuthBackend())
+app.add_middleware(LoggingMiddleware)
+
+app.include_router(auth.apis.router)
+app.include_router(users.apis.router)
 
 
 @app.get("/", include_in_schema=False)
@@ -50,19 +65,27 @@ async def health_check():
 
 
 @app.post("/research", response_model=ResearchResponse)
-async def research(request: ResearchRequest):
+async def research(request: Request, payload: ResearchRequest):
+    user_id = request.user.user_id
+    email = request.user._display_name
+    logger.info(
+        "Research query received",
+        extra={"user_id": user_id, "email": email, "query": payload.query},
+    )
     try:
         result = await run_in_threadpool(agent.invoke, {
-            "query": request.query,
-            "max_results": request.max_results,
+            "query": payload.query,
+            "max_results": payload.max_results,
             "search_results": [],
             "retrieved_docs": [],
             "steps": [],
             "answer": "",
         })
     except Exception as e:
+        logger.error("Research query failed", extra={"user_id": user_id, "email": email, "error": str(e)})
         raise HTTPException(status_code=500, detail=str(e))
 
+    logger.info("Research query completed", extra={"user_id": user_id, "email": email, "query": payload.query})
     return ResearchResponse(
         query=result["query"],
         answer=result["answer"],
@@ -71,19 +94,39 @@ async def research(request: ResearchRequest):
     )
 
 
+@app.delete("/documents", summary="Clear all documents from vector store")
+async def clear_documents(request: Request):
+    user_id = request.user.user_id
+    email = request.user._display_name
+    logger.warning("Vector store cleared", extra={"user_id": user_id, "email": email})
+    try:
+        store.clear()
+    except Exception as e:
+        logger.error("Failed to clear vector store", extra={"user_id": user_id, "email": email, "error": str(e)})
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"success": True, "message": "Vector store cleared"}
+
+
 @app.post("/documents", response_model=AddDocumentResponse)
-async def add_document(request: AddDocumentRequest):
+async def add_document(request: Request, payload: AddDocumentRequest):
+    user_id = request.user.user_id
+    email = request.user._display_name
+    logger.info(
+        "Document added to vector store",
+        extra={"user_id": user_id, "email": email, "source": payload.source},
+    )
     try:
         ids = store.add_documents(
-            texts=[request.text],
-            sources=[request.source],
-            metadata=[request.metadata],
+            texts=[payload.text],
+            sources=[payload.source],
+            metadata=[payload.metadata],
         )
     except Exception as e:
+        logger.error("Failed to add document", extra={"user_id": user_id, "email": email, "error": str(e)})
         raise HTTPException(status_code=500, detail=str(e))
 
     return AddDocumentResponse(
         success=True,
         faiss_id=ids[0],
-        source=request.source,
+        source=payload.source,
     )

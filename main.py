@@ -2,7 +2,10 @@ import os
 
 import uvicorn
 
-from application.app import app
+from application.app import app  # noqa: F401 — registers all routes and models
+from database.db import Base, engine
+
+Base.metadata.create_all(bind=engine)
 
 port = int(os.getenv("API_PORT", "8000"))
 

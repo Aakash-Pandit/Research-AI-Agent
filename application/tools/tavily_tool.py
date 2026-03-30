@@ -2,7 +2,7 @@ import os
 
 from tavily import TavilyClient
 
-_client = TavilyClient(api_key=os.getenv("TAILVY_API_KEY"))
+_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
 
 def search_web(query: str, max_results: int = 5) -> list[dict]:
